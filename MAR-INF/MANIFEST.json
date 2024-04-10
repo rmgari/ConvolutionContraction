@@ -1,0 +1,11 @@
+{
+  "createdOn": "04/05/2021 21:26:50",
+  "runtime": "python",
+  "model": {
+    "modelName": "alexnet_scripted",
+    "serializedFile": "alexnet.pt",
+    "handler": "image_classifier",
+    "modelVersion": "1.0"
+  },
+  "archiverVersion": "0.3.0"
+}
