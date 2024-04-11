@@ -112,23 +112,15 @@ int main() {
 // Algorithm outline for performing and checking the contractions
 
 // For each layer of a given model
-// Copy the input and kernel Tensors from pytorch into TBLIS tensors (elements in both tensors can be accessed with indexing, so use nested loops)
+// Copy the input and kernel Tensors from pytorch into TBLIS tensors
 // Copy the output Tensor from pytorch into a TBLIS tensor as well
-
-// How should I interpret the operator()(idx0, idx1, ...) notation? Given a tensor called ref that has dimensions 2x3x4, do I access the first element with
-// ref(0, 0, 0)? 
 
 // Is the overhead added from this step something we should account for and try to reduce (approaching im2col)? Given how I've written the contraction, the operation is dependent on the input tensor being expanded into a tensor with higher dimensionality before the contraction happens. Is there any way to avoid this (maybe by rewriting the contraction)?
 
 // Initialize output tensor C with the right dimensions (can do this in a function using the formula [(W−K+2P)/S]+1)
 // Call mult<T>(alpha, A, idx_A, B, idx_B, beta, C, idx_C), where alpha = 1, beta = 1, A = input tensor, B = kernel, C = output, idx_A = "", idx_B = "", idx_C = ""
 
-// From the TBLIS Wiki, "Based on which types of indices appear, different operations can be defined" -> so what should idx_A, idx_B, idx_C equal? Need to feed index bundles I (indices of A and C), J (indices of B and C), and P (indices of A and B) to these function parameters in some order to make the multiplication function do a contraction. 
-
 // Call add<T>(alpha, A, idx_A, beta, B, idx_B) with alpha = 1, beta = -1, A = output_ref, B = C, idx_A = all indices of output_ref, idx_B = all indices of C
 // On the result tensor, we can call reduce<T>(op, A, idx_A), where op = REDUCE_MAX_ABS == REDUCE_NORM_INF, idx_A = all indices of the result tensor to find the max diff
 
 // Does the extra addition step introduce alter the acceptable bounds for the max-diff?
-
-
-// Should I use the mult<T>(comm, alpha, A, idx_A, B, idx_B, beta, C, idx_C) and add<T>(comm, alpha, A, idx_A, beta, B, idx_B) function signatures instead to employ parallelization either now or in the future (scalability)? Or is single-threading sufficient for now?
