@@ -28,7 +28,7 @@ int main() {
     Tensor input = torch::randn({1, 3, 64, 64});
     vector<c10::IValue> model_in;
 
-    // TODO: copy input tensor into A
+    // TODO: copy input tensor into A, use tblis view
     // for test case one (pass through first layer of AlexNet)
     tblis::tensor<float> A = varray({3, 15, 15, 11, 11}, 0);
     tblis::tensor<float> B = varray({64, 3, 11, 11}, 0);
@@ -101,7 +101,6 @@ int main() {
                 for (int l = 0; l < 11; ++l)
                     B(i, j, k, l) = kernels[0][i][j][k][l].item<float>();
     
-    // TODO: Make C a tblis view
     tblis::tensor<float> C = varray({15, 15, 64}, 0);
     
     // mult<float>(1, A, "abcde", B, "fade", 0, C, "bcf");
