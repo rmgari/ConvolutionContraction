@@ -30,8 +30,15 @@ int main() {
 
     // TODO: copy input tensor into A, use tblis view
     // for test case one (pass through first layer of AlexNet)
-    tblis::tensor<float> A = varray({3, 15, 15, 11, 11}, 0);
+    tblis::tensor<float> A = varray({3, 64, 64}, 0);
     tblis::tensor<float> B = varray({64, 3, 11, 11}, 0);
+
+    // cout << at::symint::strides(&A);
+
+    // tblis::tensor<float> A2 = varray_view<float>({3, 54, 54}, (float*) &A, {1, 3, 162});
+    
+    cout << "A2\n" << A2;
+    // cout << "A\n" << A;
 
     vector<Tensor> inputs;
     vector<Tensor> layer_outputs;
