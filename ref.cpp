@@ -21,8 +21,6 @@ Tensor naive_algo(int inc, int outc, Tensor input, Tensor kernel, Tensor b, int 
 }
 
 int main() {
-    
-
     jit::script::Module model = jit::load("alexnet.pt");
 
     Tensor input = torch::randn({1, 3, 64, 64});
@@ -30,15 +28,16 @@ int main() {
 
     // TODO: copy input tensor into A, use tblis view
     // for test case one (pass through first layer of AlexNet)
+
+    // Trying mult on zeroed out tensors for now, will expand functionality to
+    // all layers of AlexNet/VGGNet once it works
     tblis::tensor<float> A = varray({3, 64, 64}, 0);
     tblis::tensor<float> B = varray({64, 3, 11, 11}, 0);
 
+    // Trying to create a view of A with the proper dimensions to perform tblis::mult
     // cout << at::symint::strides(&A);
-
-    // tblis::tensor<float> A2 = varray_view<float>({3, 54, 54}, (float*) &A, {1, 3, 162});
-    
-    cout << "A2\n" << A2;
-    // cout << "A\n" << A;
+    // tblis::tensor<float> A2 = varray_view<float>({3, 11, 11, 15, 15}, (float*) &A, {27225, 2475, 225, 15, 1});
+    // cout << "A2\n" << A2;
 
     vector<Tensor> inputs;
     vector<Tensor> layer_outputs;
@@ -102,6 +101,8 @@ int main() {
         cout << "Max diff: " << (torch::max(torch::abs(layer_outputs[i] - res))).item() << '\n';
     }
 
+    // Brute force copy the first kernel into tblis::tensor B to test tblis::mult
+    // as mentioned earlier, we are trying to get it to work on zeroed out tensors
     for (int i = 0; i < 63; ++i)
         for (int j = 0; j < 3; ++j)
             for (int k = 0; k < 11; ++k)
@@ -110,7 +111,7 @@ int main() {
     
     tblis::tensor<float> C = varray({15, 15, 64}, 0);
     
-    // mult<float>(1, A, "abcde", B, "fade", 0, C, "bcf");
+    // mult<float>(1, A2, "abcde", B, "fabc", 0, C, "def");
 
     return 0;
 }
