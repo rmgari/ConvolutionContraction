@@ -3,3 +3,4 @@ alexnet.pt
 vgg16.pt
 
 *.x
+*.o
