@@ -26,19 +26,6 @@ int main() {
     Tensor input = torch::randn({1, 3, 64, 64});
     vector<c10::IValue> model_in;
 
-    // TODO: copy input tensor into A, use tblis view
-    // for test case one (pass through first layer of AlexNet)
-
-    // Trying mult on zeroed out tensors for now, will expand functionality to
-    // all layers of AlexNet/VGGNet once it works
-    tblis::tensor<float> A = varray({3, 64, 64}, 0);
-    tblis::tensor<float> B = varray({64, 3, 11, 11}, 0);
-
-    // Trying to create a view of A with the proper dimensions to perform tblis::mult
-    // cout << at::symint::strides(&A);
-    // tblis::tensor<float> A2 = varray_view<float>({3, 11, 11, 15, 15}, (float*) &A, {27225, 2475, 225, 15, 1});
-    // cout << "A2\n" << A2;
-
     vector<Tensor> inputs;
     vector<Tensor> layer_outputs;
 
@@ -90,29 +77,85 @@ int main() {
     specs[3] = make_pair(1, 1);
     specs[4] = make_pair(1, 1);    
     
-    for (int i = 0; i < kernels.size(); ++i) {
-        int outc = kernels[i].sizes()[0];
-        int inc = kernels[i].sizes()[1];
+    // for (int i = 0; i < kernels.size(); ++i) {
+    //     int outc = kernels[i].sizes()[0];
+    //     int inc = kernels[i].sizes()[1];
 
-        Tensor res = naive_algo(inc, outc, inputs[i], kernels[i], biases[i], specs[i].first, specs[i].second);
-        // Tensor res = naive_algo(inc, outc, inputs[i], kernels[i], biases[i], 1, 1);
+    //     Tensor res = naive_algo(inc, outc, inputs[i], kernels[i], biases[i], specs[i].first, specs[i].second);
+    //     // Tensor res = naive_algo(inc, outc, inputs[i], kernels[i], biases[i], 1, 1);
 
-        // Source: https://stackoverflow.com/questions/73902752/how-can-i-get-the-maximum-values-of-a-tensor-along-a-dimension
-        cout << "Max diff: " << (torch::max(torch::abs(layer_outputs[i] - res))).item() << '\n';
+    //     // Source: https://stackoverflow.com/questions/73902752/how-can-i-get-the-maximum-values-of-a-tensor-along-a-dimension
+    //     cout << "Max diff: " << (torch::max(torch::abs(layer_outputs[i] - res))).item() << '\n';
+    // }
+
+    // cout << '\n';
+
+    // setup algo 2
+    int Wi=5, Hi=5, Ci=1;
+    int Wf=3, Hf=3;
+    // assume stride = 1, padding = 0
+    int Wo = Wi - Wf + 1, Ho = Wi - Wf + 1, Co = 1;
+
+    Tensor a2_input = torch::randn({Ci, Wi, Hi});
+    Tensor a2_kernel = torch::randn({Co, Ci, Wf, Hf});
+    Tensor c_ref = naive_algo(Ci, Co, a2_input, a2_kernel, torch::zeros(Co), 1, 0);
+    
+    vector<len_type> dimsA = {Ci, Wi, Hi};
+    tblis::tensor<float> A(dimsA, COLUMN_MAJOR); 
+    tblis::tensor<float> B = varray({Ci, Co, Wf, Hf}, 0);
+    tblis::tensor<float> C = varray({Co, Wo, Ho}, 0);
+
+    // copy over A, B
+    for (int i = 0; i < Ci; ++i) {
+        for (int j = 0; j < Wi; ++j) {
+            for (int k = 0; k < Hi; ++k) {
+                A(i, j, k) = a2_input[i][j][k].item<float>();
+            }
+        }
     }
 
-    // Brute force copy the first kernel into tblis::tensor B to test tblis::mult
-    // as mentioned earlier, we are trying to get it to work on zeroed out tensors
-    for (int i = 0; i < 63; ++i)
-        for (int j = 0; j < 3; ++j)
-            for (int k = 0; k < 11; ++k)
-                for (int l = 0; l < 11; ++l)
-                    B(i, j, k, l) = kernels[0][i][j][k][l].item<float>();
-    
-    tblis::tensor<float> C = varray({15, 15, 64}, 0);
-    
-    // mult<float>(1, A2, "abcde", B, "fabc", 0, C, "def");
+    for (int i = 0; i < Co; ++i) {
+        for (int j = 0; j < Ci; ++j) {
+            for (int k = 0; k < Wf; ++k) {
+                for (int l = 0; l < Hf; ++l) {
+                    B(j, i, k, l) = a2_kernel[i][j][k][l].item<float>();
+                }
+            }
+        }
+    }    
 
+    // writing algo 2
+    for (int l = 0; l < Ho; ++l) {
+        for (int n = 0; n < Hf; ++n) {
+            for (int m = 0; m < Wf; ++m) {
+                for (int i = 0; i < Ci; ++i) {
+                    for (int k = 0; k < Wo; ++k) {
+                        for (int j = 0; j < Co; ++j) {
+                            C(j, k, l) += A(i, k + m, l + n) * B(i, j, m, n);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // testing algo 2
+    cout << c_ref << '\n';
+    cout << C << '\n';
+
+    // fix kernel, output -> determine correct index mapping in input    
+    // cout << A << '\n';
+    tblis::tensor<float> A2 = varray_view<float>({Ci, Wo, Wf, Ho, Hf}, A.data(), {Wi * Hi, Hi, Hi, 1, 1});
+    // cout << A2(0,0,0,0,0) << '\n';
+    // cout << A2(0,0,0,0,1) << '\n';
+    // cout << A2(0,0,0,0,2) << '\n';
+    // cout << A2(0,0,0,1,0) << '\n';
+    // cout << A2(0,0,1,0,0) << '\n';
+    // cout << A2(0,2,2,2,2) << '\n';
+    // cout << A2 << '\n';
+    tblis::tensor<float> C2 = varray({Co, Wo, Ho}, 0);
+    mult<float>(1, A2, "abcde", B, "afce", 0, C2, "fbd");
+    cout << C2;    
     return 0;
 }
 
