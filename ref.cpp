@@ -96,12 +96,27 @@ int main() {
     // assume stride = 1, padding = 0
     int Wo = Wi - Wf + 1, Ho = Wi - Wf + 1, Co = 1;
 
-    Tensor a2_input = torch::randn({Ci, Wi, Hi});
-    Tensor a2_kernel = torch::randn({Co, Ci, Wf, Hf});
+    Tensor a2_input = torch::empty({Ci, Wi, Hi});
+    int fill = 1;
+    for (int i = 0; i < Wi; ++i) {
+        for (int j = 0; j < Hi; ++j) {
+            a2_input[0][i][j] = fill++;
+        }
+    }
+    
+    Tensor a2_kernel = torch::empty({Co, Ci, Wf, Hf});
+    fill = 1;
+    for (int i = 0; i < Wf; ++i) {
+        for (int j = 0; j < Hf; ++j) {
+            a2_kernel[0][0][i][j] = fill++;
+        }
+    }
+
     Tensor c_ref = naive_algo(Ci, Co, a2_input, a2_kernel, torch::zeros(Co), 1, 0);
     
-    vector<len_type> dimsA = {Ci, Wi, Hi};
-    tblis::tensor<float> A(dimsA, COLUMN_MAJOR); 
+    // vector<len_type> dimsA = {Ci, Wi, Hi};
+    // tblis::tensor<float> A(dimsA, COLUMN_MAJOR); 
+    tblis::tensor<float> A = varray({Ci, Wi, Hi}, 0);    
     tblis::tensor<float> B = varray({Ci, Co, Wf, Hf}, 0);
     tblis::tensor<float> C = varray({Co, Wo, Ho}, 0);
 
@@ -140,37 +155,22 @@ int main() {
     }
 
     // testing algo 2
+    cout << A << '\n';
+    cout << B << '\n';
     cout << c_ref << '\n';
     cout << C << '\n';
 
     // fix kernel, output -> determine correct index mapping in input    
-    // cout << A << '\n';
+    
     tblis::tensor<float> A2 = varray_view<float>({Ci, Wo, Wf, Ho, Hf}, A.data(), {Wi * Hi, Hi, Hi, 1, 1});
-    // cout << A2(0,0,0,0,0) << '\n';
-    // cout << A2(0,0,0,0,1) << '\n';
-    // cout << A2(0,0,0,0,2) << '\n';
-    // cout << A2(0,0,0,1,0) << '\n';
-    // cout << A2(0,0,1,0,0) << '\n';
-    // cout << A2(0,2,2,2,2) << '\n';
-    // cout << A2 << '\n';
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            cout << A2(0, 0, i, 0, j) << ' ';
+        }
+        cout << '\n';
+    }
     tblis::tensor<float> C2 = varray({Co, Wo, Ho}, 0);
     mult<float>(1, A2, "abcde", B, "afce", 0, C2, "fbd");
-    cout << C2;    
+    cout << C2 << '\n';    
     return 0;
 }
-
-// Algorithm outline for performing and checking the contractions
-
-// For each layer of a given model
-// Copy the input and kernel Tensors from pytorch into TBLIS tensors
-// Copy the output Tensor from pytorch into a TBLIS tensor as well
-
-// Is the overhead added from this step something we should account for and try to reduce (approaching im2col)? Given how I've written the contraction, the operation is dependent on the input tensor being expanded into a tensor with higher dimensionality before the contraction happens. Is there any way to avoid this (maybe by rewriting the contraction)?
-
-// Initialize output tensor C with the right dimensions (can do this in a function using the formula [(W−K+2P)/S]+1)
-// Call mult<T>(alpha, A, idx_A, B, idx_B, beta, C, idx_C), where alpha = 1, beta = 1, A = input tensor, B = kernel, C = output, idx_A = "", idx_B = "", idx_C = ""
-
-// Call add<T>(alpha, A, idx_A, beta, B, idx_B) with alpha = 1, beta = -1, A = output_ref, B = C, idx_A = all indices of output_ref, idx_B = all indices of C
-// On the result tensor, we can call reduce<T>(op, A, idx_A), where op = REDUCE_MAX_ABS == REDUCE_NORM_INF, idx_A = all indices of the result tensor to find the max diff
-
-// Does the extra addition step introduce alter the acceptable bounds for the max-diff?
