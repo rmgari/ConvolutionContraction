@@ -96,21 +96,24 @@ int main() {
     // assume stride = 1, padding = 0
     int Wo = Wi - Wf + 1, Ho = Wi - Wf + 1, Co = 1;
 
-    Tensor a2_input = torch::empty({Ci, Wi, Hi});
-    int fill = 1;
-    for (int i = 0; i < Wi; ++i) {
-        for (int j = 0; j < Hi; ++j) {
-            a2_input[0][i][j] = fill++;
-        }
-    }
+    // Tensor a2_input = torch::empty({Ci, Wi, Hi});
+    // int fill = 1;
+    // for (int i = 0; i < Wi; ++i) {
+    //     for (int j = 0; j < Hi; ++j) {
+    //         a2_input[0][i][j] = fill++;
+    //     }
+    // }
     
-    Tensor a2_kernel = torch::empty({Co, Ci, Wf, Hf});
-    fill = 1;
-    for (int i = 0; i < Wf; ++i) {
-        for (int j = 0; j < Hf; ++j) {
-            a2_kernel[0][0][i][j] = fill++;
-        }
-    }
+    // Tensor a2_kernel = torch::empty({Co, Ci, Wf, Hf});
+    // fill = 1;
+    // for (int i = 0; i < Wf; ++i) {
+    //     for (int j = 0; j < Hf; ++j) {
+    //         a2_kernel[0][0][i][j] = fill++;
+    //     }
+    // }
+
+    Tensor a2_input = torch::randn({Ci, Wi, Hi});
+    Tensor a2_kernel = torch::randn({Co, Ci, Wf, Hf});
 
     Tensor c_ref = naive_algo(Ci, Co, a2_input, a2_kernel, torch::zeros(Co), 1, 0);
     
@@ -163,12 +166,12 @@ int main() {
     // fix kernel, output -> determine correct index mapping in input    
     
     tblis::tensor<float> A2 = varray_view<float>({Ci, Wo, Wf, Ho, Hf}, A.data(), {Wi * Hi, Hi, Hi, 1, 1});
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            cout << A2(0, 0, i, 0, j) << ' ';
-        }
-        cout << '\n';
-    }
+    // for (int i = 0; i < 3; ++i) {
+    //     for (int j = 0; j < 3; ++j) {
+    //         cout << A2(0, 0, i, 0, j) << ' ';
+    //     }
+    //     cout << '\n';
+    // }
     tblis::tensor<float> C2 = varray({Co, Wo, Ho}, 0);
     mult<float>(1, A2, "abcde", B, "afce", 0, C2, "fbd");
     cout << C2 << '\n';    
