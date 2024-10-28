@@ -3,6 +3,7 @@
 #include <torch/torch.h>
 #include <torch/script.h>
 #include <iostream>
+#include <chrono>
 
 #include "tblis.h"
 
@@ -17,6 +18,8 @@ Tensor naive_algo(int inc, int outc, Tensor input, Tensor kernel, Tensor b, int 
     layer->weight = kernel;
     // layer->bias = b;
     // perform the convolution
+
+    // do the timing here ???
     return layer->forward(input);
 }
 
@@ -83,9 +86,13 @@ int main() {
         int Wi = inputs[layer].sizes()[2], Hi = inputs[layer].sizes()[3];
         int Wf = kernels[layer].sizes()[2], Hf = kernels[layer].sizes()[3];
         int s = specs[layer].first, p = specs[layer].second;
+        // int s=1, p=1;
         int Wo = ((Wi - Wf + 2 * p) / s) + 1, Ho = ((Hi - Hf + 2 * p) / s) + 1;
 
+        auto start_libtorch = std::chrono::steady_clock::now();
         Tensor res = naive_algo(Ci, Co, inputs[layer], kernels[layer], biases[layer], s, p);      
+        auto end_libtorch = std::chrono::steady_clock::now();
+        auto elapsed_libtorch = std::chrono::duration_cast<std::chrono::microseconds>(end_libtorch - start_libtorch).count();
 
         tblis::tensor<float> A = varray({Ci, Wi + 2 * p, Hi + 2 * p}, 0);
         tblis::tensor<float> B = varray({Ci, Co, Wf, Hf}, 0);
@@ -98,7 +105,7 @@ int main() {
                     A(i, j, k) = inputs[layer][0][i][j - p][k - p].item<float>();
                 }
             }
-        }       
+        }
 
         // copy kernel into B
         for (int i = 0; i < Co; ++i) {
@@ -110,11 +117,14 @@ int main() {
                 }
             }
         }
+        auto start_tblis = std::chrono::steady_clock::now();
         // fix kernel, output -> determine correct index mapping in input  
         // second and fourth by s
         tblis::tensor<float> A2 = varray_view<float>({Ci, Wo, Wf, Ho, Hf}, A.data(), {(Wi + 2 * p) * (Hi + 2 * p), s * (Hi + 2 * p), (Hi + 2 * p), s, 1});
         tblis::tensor<float> C2 = varray({Co, Wo, Ho}, 0);
         mult<float>(1, A2, "abcde", B, "afce", 0, C2, "fbd");
+        auto end_tblis = std::chrono::steady_clock::now();
+        auto elapsed_tblis = std::chrono::duration_cast<std::chrono::microseconds>(end_tblis - start_tblis).count();        
 
         // Source: https://stackoverflow.com/questions/73902752/how-can-i-get-the-maximum-values-of-a-tensor-along-a-dimension
         // cout << "Max diff: " << (torch::max(torch::abs(layer_outputs[layer] - res))).item() << '\n';
@@ -130,6 +140,8 @@ int main() {
         }
         cout << "Co\tCi\tWf\tHf\tWi\tHi\ts\tp\n";
         cout << Co << '\t' << Ci << '\t' << Wf << '\t' << Hf << '\t' << Wi << '\t' << Hi << '\t' << s << '\t' << p << '\n';
+        cout << "LibTorch: " << elapsed_libtorch << " microseconds\n";
+        cout << "TBLIS: " << elapsed_tblis << " microseconds\n";
         cout << "Max diff: " << max_abs_diff << "\n\n";
     }
     
