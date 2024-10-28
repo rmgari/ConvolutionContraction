@@ -130,36 +130,46 @@ int main() {
         // cout << "Max diff: " << (torch::max(torch::abs(layer_outputs[layer] - res))).item() << '\n';
         // check max diff between res and C2
 
-        float max_abs_diff = 0;
+
+        tblis::tensor<float> C_algo_two = varray({Co, Wo, Ho}, 0);
+        // writing algo 2
+        for (int l = 0; l < Ho; ++l) {
+            for (int n = 0; n < Hf; ++n) {
+                for (int m = 0; m < Wf; ++m) {
+                    for (int i = 0; i < Ci; ++i) {
+                        for (int k = 0; k < Wo; ++k) {
+                            for (int j = 0; j < Co; ++j) {
+                                C_algo_two(j, k, l) += A(i, k * s + m, l * s + n) * B(i, j, m, n);
+                            }
+                        }
+                    }
+                }
+            }
+        }        
+
+        float max_abs_diff_alg2_libtorch = 0;
         for (int i = 0; i < Co; ++i) {
             for (int j = 0; j < Wo; ++j) {
                 for (int k = 0; k < Ho; ++k) {
-                    max_abs_diff = max(max_abs_diff, abs(res[0][i][j][k].item<float>() - C2(i, j, k)));
+                    max_abs_diff_alg2_libtorch = max(max_abs_diff_alg2_libtorch, abs(res[0][i][j][k].item<float>() - C_algo_two(i, j, k)));
                 }
             }
         }
+        float max_abs_diff_alg2_tblis = 0;
+        for (int i = 0; i < Co; ++i) {
+            for (int j = 0; j < Wo; ++j) {
+                for (int k = 0; k < Ho; ++k) {
+                    max_abs_diff_alg2_tblis = max(max_abs_diff_alg2_tblis, abs(C2(i, j, k) - C_algo_two(i, j, k)));
+                }
+            }
+        }        
         cout << "Co\tCi\tWf\tHf\tWi\tHi\ts\tp\n";
         cout << Co << '\t' << Ci << '\t' << Wf << '\t' << Hf << '\t' << Wi << '\t' << Hi << '\t' << s << '\t' << p << '\n';
         cout << "LibTorch: " << elapsed_libtorch << " microseconds\n";
         cout << "TBLIS: " << elapsed_tblis << " microseconds\n";
-        cout << "Max diff: " << max_abs_diff << "\n\n";
+        cout << "Max diff between algo 2 and libtorch: " << max_abs_diff_alg2_libtorch << "\n";
+        cout << "Max diff between algo 2 and TBLIS: " << max_abs_diff_alg2_tblis << "\n\n";
     }
     
     return 0;
 }
-
-    // Tensor c_ref = naive_algo(Ci, Co, a2_input, a2_kernel, torch::zeros(Co), s, p);
-    // // writing algo 2
-    // for (int l = 0; l < Ho; ++l) {
-    //     for (int n = 0; n < Hf; ++n) {
-    //         for (int m = 0; m < Wf; ++m) {
-    //             for (int i = 0; i < Ci; ++i) {
-    //                 for (int k = 0; k < Wo; ++k) {
-    //                     for (int j = 0; j < Co; ++j) {
-    //                         C(j, k, l) += A(i, k + m, l + n) * B(i, j, m, n);
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
