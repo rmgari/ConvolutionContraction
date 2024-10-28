@@ -162,13 +162,23 @@ int main() {
                     max_abs_diff_alg2_tblis = max(max_abs_diff_alg2_tblis, abs(C2(i, j, k) - C_algo_two(i, j, k)));
                 }
             }
-        }        
+        }    
+        float max_abs_diff_libtorch_tblis = 0;
+        for (int i = 0; i < Co; ++i) {
+            for (int j = 0; j < Wo; ++j) {
+                for (int k = 0; k < Ho; ++k) {
+                    max_abs_diff_libtorch_tblis = max(max_abs_diff_libtorch_tblis, abs(C2(i, j, k) - res[0][i][j][k].item<float>()));
+                }
+            }
+        }
+        cout << "Layer " << layer + 1 << '\n';
         cout << "Co\tCi\tWf\tHf\tWi\tHi\ts\tp\n";
         cout << Co << '\t' << Ci << '\t' << Wf << '\t' << Hf << '\t' << Wi << '\t' << Hi << '\t' << s << '\t' << p << '\n';
-        cout << "LibTorch: " << elapsed_libtorch << " microseconds\n";
-        cout << "TBLIS: " << elapsed_tblis << " microseconds\n";
-        cout << "Max diff between algo 2 and libtorch: " << max_abs_diff_alg2_libtorch << "\n";
-        cout << "Max diff between algo 2 and TBLIS: " << max_abs_diff_alg2_tblis << "\n\n";
+        // cout << "LibTorch: " << elapsed_libtorch << " microseconds\n";
+        // cout << "TBLIS: " << elapsed_tblis << " microseconds\n";
+        cout << "Max diff between algo 2 and LibTorch: " << max_abs_diff_alg2_libtorch << "\n";
+        cout << "Max diff between algo 2 and TBLIS: " << max_abs_diff_alg2_tblis << "\n";
+        cout << "Max diff between LibTorch and TBLIS: " << max_abs_diff_libtorch_tblis << "\n\n";
     }
     
     return 0;
