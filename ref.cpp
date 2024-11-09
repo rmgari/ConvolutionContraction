@@ -11,16 +11,23 @@ using namespace std;
 using namespace torch;
 using namespace tblis;
 
-Tensor naive_algo(int inc, int outc, Tensor input, Tensor kernel, Tensor b, int s, int p) {
+typedef long long ll; 
+
+pair<Tensor, ll> libtorch_convolution(int inc, int outc, Tensor input, Tensor kernel, Tensor b, int s, int p) {
     int k_size = kernel.sizes()[2];
     // create the convolution layer with all given specifications
     nn::Conv2d layer = nn::Conv2d(nn::Conv2dOptions(inc, outc, k_size).stride(s).padding(p));
     layer->weight = kernel;
-    // layer->bias = b;
+    layer->bias = b;
     // perform the convolution
+    pair<Tensor, ll> returnVal;
 
-    // do the timing here ???
-    return layer->forward(input);
+    auto start_libtorch = std::chrono::steady_clock::now();    
+    returnVal.first = layer->forward(input);
+    auto end_libtorch = std::chrono::steady_clock::now();
+
+    returnVal.second = std::chrono::duration_cast<std::chrono::nanoseconds>(end_libtorch - start_libtorch).count();
+    return returnVal;
 }
 
 int main() {
@@ -86,13 +93,12 @@ int main() {
         int Wi = inputs[layer].sizes()[2], Hi = inputs[layer].sizes()[3];
         int Wf = kernels[layer].sizes()[2], Hf = kernels[layer].sizes()[3];
         int s = specs[layer].first, p = specs[layer].second;
-        // int s=1, p=1;
+
         int Wo = ((Wi - Wf + 2 * p) / s) + 1, Ho = ((Hi - Hf + 2 * p) / s) + 1;
 
-        auto start_libtorch = std::chrono::steady_clock::now();
-        Tensor res = naive_algo(Ci, Co, inputs[layer], kernels[layer], biases[layer], s, p);      
-        auto end_libtorch = std::chrono::steady_clock::now();
-        auto elapsed_libtorch = std::chrono::duration_cast<std::chrono::microseconds>(end_libtorch - start_libtorch).count();
+        pair<Tensor, ll> libtorch_out = libtorch_convolution(Ci, Co, inputs[layer], kernels[layer], torch::zeros(Co), s, p);
+        Tensor res = libtorch_out.first;
+        auto elapsed_libtorch = libtorch_out.second;
 
         tblis::tensor<float> A = varray({Ci, Wi + 2 * p, Hi + 2 * p}, 0);
         tblis::tensor<float> B = varray({Ci, Co, Wf, Hf}, 0);
@@ -112,19 +118,19 @@ int main() {
             for (int j = 0; j < Ci; ++j) {
                 for (int k = 0; k < Wf; ++k) {
                     for (int l = 0; l < Hf; ++l) {
-                        B(j, i, k, l) = kernels[layer][i][j][k][l].item<float>();
+                        B(j, i, k, l) = kernels[layer][i][j][k][l].item<float>();                    
                     }
                 }
             }
         }
-        auto start_tblis = std::chrono::steady_clock::now();
         // fix kernel, output -> determine correct index mapping in input  
         // second and fourth by s
         tblis::tensor<float> A2 = varray_view<float>({Ci, Wo, Wf, Ho, Hf}, A.data(), {(Wi + 2 * p) * (Hi + 2 * p), s * (Hi + 2 * p), (Hi + 2 * p), s, 1});
         tblis::tensor<float> C2 = varray({Co, Wo, Ho}, 0);
+        auto start_tblis = std::chrono::steady_clock::now();        
         mult<float>(1, A2, "abcde", B, "afce", 0, C2, "fbd");
         auto end_tblis = std::chrono::steady_clock::now();
-        auto elapsed_tblis = std::chrono::duration_cast<std::chrono::microseconds>(end_tblis - start_tblis).count();        
+        auto elapsed_tblis = std::chrono::duration_cast<std::chrono::nanoseconds>(end_tblis - start_tblis).count();        
 
         // Source: https://stackoverflow.com/questions/73902752/how-can-i-get-the-maximum-values-of-a-tensor-along-a-dimension
         // cout << "Max diff: " << (torch::max(torch::abs(layer_outputs[layer] - res))).item() << '\n';
@@ -133,6 +139,7 @@ int main() {
 
         tblis::tensor<float> C_algo_two = varray({Co, Wo, Ho}, 0);
         // writing algo 2
+        auto start_algo2 = std::chrono::steady_clock::now();          
         for (int l = 0; l < Ho; ++l) {
             for (int n = 0; n < Hf; ++n) {
                 for (int m = 0; m < Wf; ++m) {
@@ -145,8 +152,10 @@ int main() {
                     }
                 }
             }
-        }        
-
+        }
+        auto end_algo2 = std::chrono::steady_clock::now();
+        auto elapsed_algo2 = std::chrono::duration_cast<std::chrono::nanoseconds>(end_algo2 - start_algo2).count();              
+        
         float max_abs_diff_alg2_libtorch = 0;
         for (int i = 0; i < Co; ++i) {
             for (int j = 0; j < Wo; ++j) {
@@ -174,8 +183,9 @@ int main() {
         cout << "Layer " << layer + 1 << '\n';
         cout << "Co\tCi\tWf\tHf\tWi\tHi\ts\tp\n";
         cout << Co << '\t' << Ci << '\t' << Wf << '\t' << Hf << '\t' << Wi << '\t' << Hi << '\t' << s << '\t' << p << '\n';
-        // cout << "LibTorch: " << elapsed_libtorch << " microseconds\n";
-        // cout << "TBLIS: " << elapsed_tblis << " microseconds\n";
+        cout << "LibTorch: " << elapsed_libtorch << " nanoseconds\n";
+        cout << "TBLIS: " << elapsed_tblis << " nanoseconds\n";
+        cout << "Algo 2: " << elapsed_algo2 << " nanoseconds\n";        
         cout << "Max diff between algo 2 and LibTorch: " << max_abs_diff_alg2_libtorch << "\n";
         cout << "Max diff between algo 2 and TBLIS: " << max_abs_diff_alg2_tblis << "\n";
         cout << "Max diff between LibTorch and TBLIS: " << max_abs_diff_libtorch_tblis << "\n\n";
