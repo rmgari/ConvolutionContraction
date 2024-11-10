@@ -30,8 +30,34 @@ pair<Tensor, ll> libtorch_convolution(int inc, int outc, Tensor input, Tensor ke
     return returnVal;
 }
 
+float max_abs_diff(tblis::tensor<float> t1, tblis::tensor<float> t2, int Co, int Wo, int Ho) {
+    float mad = 0.0;
+    for (int i = 0; i < Co; ++i) {
+        for (int j = 0; j < Wo; ++j) {
+            for (int k = 0; k < Ho; ++k) {
+                mad = max(mad, abs(t1(i, j, k) - t2(i, j, k)));
+            }
+        }
+    }
+    return mad;
+}
+
+float max_abs_diff(torch::Tensor t1, tblis::tensor<float> t2, int Co, int Wo, int Ho) {
+    float mad = 0.0;
+    for (int i = 0; i < Co; ++i) {
+        for (int j = 0; j < Wo; ++j) {
+            for (int k = 0; k < Ho; ++k) {
+                mad = max(mad, abs(t1[0][i][j][k].item<float>() - t2(i, j, k)));
+            }
+        }
+    }
+    return mad;
+}
+
+
 int main() {
-    jit::script::Module model = jit::load("alexnet.pt");
+    // jit::script::Module model = jit::load("alexnet.pt");
+    jit::script::Module model = jit::load("vgg16.pt");    
 
     Tensor input = torch::randn({1, 3, 64, 64});
     vector<c10::IValue> model_in;
@@ -42,8 +68,8 @@ int main() {
     auto params = model.named_parameters();
     auto children = model.named_children();
 
-    string clayer_inds[5] = {"0", "3", "6", "8", "10"};
-    // string clayer_inds[13] = {"0", "2", "5", "7", "10", "12", "14", "17", "19", "21", "24", "26", "28"};
+    // string clayer_inds[5] = {"0", "3", "6", "8", "10"};
+    string clayer_inds[13] = {"0", "2", "5", "7", "10", "12", "14", "17", "19", "21", "24", "26", "28"};
     
     model_in.push_back(input);
 
@@ -93,7 +119,8 @@ int main() {
         int Wi = inputs[layer].sizes()[2], Hi = inputs[layer].sizes()[3];
         int Wf = kernels[layer].sizes()[2], Hf = kernels[layer].sizes()[3];
         int s = specs[layer].first, p = specs[layer].second;
-
+        // for vgg16
+        s = 1, p = 1;
         int Wo = ((Wi - Wf + 2 * p) / s) + 1, Ho = ((Hi - Hf + 2 * p) / s) + 1;
 
         pair<Tensor, ll> libtorch_out = libtorch_convolution(Ci, Co, inputs[layer], kernels[layer], torch::zeros(Co), s, p);
@@ -155,40 +182,16 @@ int main() {
         }
         auto end_algo2 = std::chrono::steady_clock::now();
         auto elapsed_algo2 = std::chrono::duration_cast<std::chrono::nanoseconds>(end_algo2 - start_algo2).count();              
-        
-        float max_abs_diff_alg2_libtorch = 0;
-        for (int i = 0; i < Co; ++i) {
-            for (int j = 0; j < Wo; ++j) {
-                for (int k = 0; k < Ho; ++k) {
-                    max_abs_diff_alg2_libtorch = max(max_abs_diff_alg2_libtorch, abs(res[0][i][j][k].item<float>() - C_algo_two(i, j, k)));
-                }
-            }
-        }
-        float max_abs_diff_alg2_tblis = 0;
-        for (int i = 0; i < Co; ++i) {
-            for (int j = 0; j < Wo; ++j) {
-                for (int k = 0; k < Ho; ++k) {
-                    max_abs_diff_alg2_tblis = max(max_abs_diff_alg2_tblis, abs(C2(i, j, k) - C_algo_two(i, j, k)));
-                }
-            }
-        }    
-        float max_abs_diff_libtorch_tblis = 0;
-        for (int i = 0; i < Co; ++i) {
-            for (int j = 0; j < Wo; ++j) {
-                for (int k = 0; k < Ho; ++k) {
-                    max_abs_diff_libtorch_tblis = max(max_abs_diff_libtorch_tblis, abs(C2(i, j, k) - res[0][i][j][k].item<float>()));
-                }
-            }
-        }
+
         cout << "Layer " << layer + 1 << '\n';
         cout << "Co\tCi\tWf\tHf\tWi\tHi\ts\tp\n";
         cout << Co << '\t' << Ci << '\t' << Wf << '\t' << Hf << '\t' << Wi << '\t' << Hi << '\t' << s << '\t' << p << '\n';
         cout << "LibTorch: " << elapsed_libtorch << " nanoseconds\n";
         cout << "TBLIS: " << elapsed_tblis << " nanoseconds\n";
         cout << "Algo 2: " << elapsed_algo2 << " nanoseconds\n";        
-        cout << "Max diff between algo 2 and LibTorch: " << max_abs_diff_alg2_libtorch << "\n";
-        cout << "Max diff between algo 2 and TBLIS: " << max_abs_diff_alg2_tblis << "\n";
-        cout << "Max diff between LibTorch and TBLIS: " << max_abs_diff_libtorch_tblis << "\n\n";
+        cout << "Max diff between algo 2 and LibTorch: " << max_abs_diff(res, C_algo_two, Co, Wo, Ho) << '\n';
+        cout << "Max diff between algo 2 and TBLIS: " << max_abs_diff(C_algo_two, C2, Co, Wo, Ho) << '\n';
+        cout << "Max diff between LibTorch and TBLIS: " << max_abs_diff(res, C2, Co, Wo, Ho) << "\n\n";
     }
     
     return 0;
