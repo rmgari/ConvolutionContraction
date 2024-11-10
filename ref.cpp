@@ -22,11 +22,11 @@ pair<Tensor, ll> libtorch_convolution(int inc, int outc, Tensor input, Tensor ke
     // perform the convolution
     pair<Tensor, ll> returnVal;
 
-    auto start_libtorch = std::chrono::steady_clock::now();    
+    auto start_libtorch = chrono::steady_clock::now();    
     returnVal.first = layer->forward(input);
-    auto end_libtorch = std::chrono::steady_clock::now();
+    auto end_libtorch = chrono::steady_clock::now();
 
-    returnVal.second = std::chrono::duration_cast<std::chrono::nanoseconds>(end_libtorch - start_libtorch).count();
+    returnVal.second = chrono::duration_cast<chrono::nanoseconds>(end_libtorch - start_libtorch).count();
     return returnVal;
 }
 
@@ -154,10 +154,10 @@ int main() {
         // second and fourth by s
         tblis::tensor<float> A2 = varray_view<float>({Ci, Wo, Wf, Ho, Hf}, A.data(), {(Wi + 2 * p) * (Hi + 2 * p), s * (Hi + 2 * p), (Hi + 2 * p), s, 1});
         tblis::tensor<float> C2 = varray({Co, Wo, Ho}, 0);
-        auto start_tblis = std::chrono::steady_clock::now();        
+        auto start_tblis = chrono::steady_clock::now();        
         mult<float>(1, A2, "abcde", B, "afce", 0, C2, "fbd");
-        auto end_tblis = std::chrono::steady_clock::now();
-        auto elapsed_tblis = std::chrono::duration_cast<std::chrono::nanoseconds>(end_tblis - start_tblis).count();        
+        auto end_tblis = chrono::steady_clock::now();
+        auto elapsed_tblis = chrono::duration_cast<chrono::nanoseconds>(end_tblis - start_tblis).count();        
 
         // Source: https://stackoverflow.com/questions/73902752/how-can-i-get-the-maximum-values-of-a-tensor-along-a-dimension
         // cout << "Max diff: " << (torch::max(torch::abs(layer_outputs[layer] - res))).item() << '\n';
@@ -166,7 +166,7 @@ int main() {
 
         tblis::tensor<float> C_algo_two = varray({Co, Wo, Ho}, 0);
         // writing algo 2
-        auto start_algo2 = std::chrono::steady_clock::now();          
+        auto start_algo2 = chrono::steady_clock::now();          
         for (int l = 0; l < Ho; ++l) {
             for (int n = 0; n < Hf; ++n) {
                 for (int m = 0; m < Wf; ++m) {
@@ -180,8 +180,8 @@ int main() {
                 }
             }
         }
-        auto end_algo2 = std::chrono::steady_clock::now();
-        auto elapsed_algo2 = std::chrono::duration_cast<std::chrono::nanoseconds>(end_algo2 - start_algo2).count();              
+        auto end_algo2 = chrono::steady_clock::now();
+        auto elapsed_algo2 = chrono::duration_cast<chrono::nanoseconds>(end_algo2 - start_algo2).count();              
 
         cout << "Layer " << layer + 1 << '\n';
         cout << "Co\tCi\tWf\tHf\tWi\tHi\ts\tp\n";
