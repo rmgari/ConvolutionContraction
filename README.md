@@ -1,4 +1,4 @@
-# CNNContraction
+# ConvolutionContraction
 
 Please download alexnet.pt and vgg16.pt from the link below before running ref.cpp.
 
