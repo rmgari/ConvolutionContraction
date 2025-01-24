@@ -19,7 +19,11 @@ void test_conv2d_layer_odd_output_channels(void)
     using BufferT = small::FloatBuffer;
 #endif    
 
+    // Ci, H, W, k, s, padding, Co
     LayerParams params {1024, 13, 13, 1, 1, small::PADDING_F, 13};
+
+    // debugging output
+    // cout << params.C_i << ' ' << params.H << ' ' << params.W  <<  ' ' << params.k << ' ' << params.s << ' ' << params.C_o << '\n';
 
     // Test 1 - Test extra channel values with random filter and bias
     // https://github.com/CMU-SPEED/SMaLLFramework/blob/7b6811476c3a61f3b9083824d75e0cbd789792e5/test/test_conv2d.cpp#L164C8-L164C61

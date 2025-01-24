@@ -7,6 +7,7 @@
 
 #include "tblis.h"
 #include "small/Conv2DLayer.hpp"
+#include "test_utils.hpp"
 
 using namespace std;
 using namespace torch;
@@ -59,7 +60,9 @@ float max_abs_diff(torch::Tensor t1, tblis::tensor<float> t2, int Co, int Wo, in
 
 
 int main() {
+    // leave uncommented when testing alexnet. comment when testing vgg16. 
     jit::script::Module model = jit::load("alexnet.pt");
+    // leave uncommented when testing vgg16. comment when testing alexnet.     
     // jit::script::Module model = jit::load("vgg16.pt");    
 
     Tensor input = torch::randn({1, 3, 64, 64});
@@ -71,7 +74,9 @@ int main() {
     auto params = model.named_parameters();
     auto children = model.named_children();
 
+    // leave uncommented when testing alexnet. comment when testing vgg16. 
     string clayer_inds[5] = {"0", "3", "6", "8", "10"};
+    // leave uncommented when testing vgg16. comment when testing alexnet. 
     // string clayer_inds[13] = {"0", "2", "5", "7", "10", "12", "14", "17", "19", "21", "24", "26", "28"};
     
     model_in.push_back(input);
@@ -122,7 +127,7 @@ int main() {
         int Wi = inputs[layer].sizes()[2], Hi = inputs[layer].sizes()[3];
         int Wf = kernels[layer].sizes()[2], Hf = kernels[layer].sizes()[3];
         int s = specs[layer].first, p = specs[layer].second;
-        // for vgg16
+        // for vgg16 (leave as is when testing SMaLL, since strides > 2 are unsupported). comment when testing alexnet (in non SMaLL context)
         s = 1, p = 1;
         int Wo = ((Wi - Wf + 2 * p) / s) + 1, Ho = ((Hi - Hf + 2 * p) / s) + 1;
 
@@ -139,7 +144,6 @@ int main() {
         tblis::tensor<float> B = varray({Ci, Co, Wf, Hf}, 0);
         tblis::tensor<float> C = varray({Co, Wo, Ho}, 0);
 
-
         // Attempting to incorporate SMaLL
         #if defined(QUANTIZED)
             using BufferT = small::QUInt8Buffer;
@@ -147,22 +151,26 @@ int main() {
             using BufferT = small::FloatBuffer;
         #endif        
 
-        small::shape_type input_shape{1U, (long unsigned int) Ci, (long unsigned int) Wi, (long unsigned int) Hi};
-        BufferT filters(Ci * Co * Wf * Hf);
+        LayerParams params {Ci, Hi, Wi, Wf, s, small::PADDING_F, Co};
+        small::shape_type input_shape{1U, params.C_i, params.H, params.W};
+
+        BufferT filters(params.C_i*params.k*params.k*params.C_o);
         small::init(filters, filters.size());
 
         small::Conv2DLayer conv2d(input_shape,
-                                  Hf, Wf,
-                                  s, small::PADDING_F,
-                                  Co,
+                                  params.k, params.k,
+                                  params.s, params.p,
+                                  params.C_o,
                                   filters,
-                                  false);       
+                                  false); 
+        // output for debugging
+        cout << Co << ' ' << Wo << ' ' << Ho << ' ' << conv2d.output_shape() << '\n';                                  
+        cout << params.C_i << ' ' << params.H << ' ' << params.W  <<  ' ' << params.k << ' ' << params.s << ' ' << params.C_o << '\n';
+                                           
+        small::Tensor<BufferT> input(input_shape);
+        small::Tensor<BufferT> output(conv2d.output_size());
 
-        cout << Co << ' ' << Wo << ' ' << Ho << ' ' << conv2d.output_shape() << '\n';
-        small::Tensor<BufferT> A_a3(input_shape);
-        small::Tensor<BufferT> C_a3(conv2d.output_size());
-
-        conv2d.compute_output({&A_a3}, &C_a3);
+        conv2d.compute_output({&input}, &output);       
 
         // copy inputs into all As
         for (int i = 0; i < Ci; ++i) {
