@@ -121,7 +121,7 @@ int main() {
     specs[3] = make_pair(1, 1);
     specs[4] = make_pair(1, 1);    
     
-    for (int layer = 0; layer < kernels.size(); ++layer) {
+    for (int layer = 0; layer < 1; ++layer) {
         int Co = kernels[layer].sizes()[0];
         int Ci = kernels[layer].sizes()[1];
         int Wi = inputs[layer].sizes()[2], Hi = inputs[layer].sizes()[3];
@@ -163,9 +163,9 @@ int main() {
                                   params.C_o,
                                   filters,
                                   false); 
-        // output for debugging
-        cout << Co << ' ' << Wo << ' ' << Ho << ' ' << conv2d.output_shape() << '\n';                                  
-        cout << params.C_i << ' ' << params.H << ' ' << params.W  <<  ' ' << params.k << ' ' << params.s << ' ' << params.C_o << '\n';
+        // // output for debugging
+        // cout << Co << ' ' << Wo << ' ' << Ho << ' ' << conv2d.output_shape() << '\n';                                  
+        // cout << params.C_i << ' ' << params.H << ' ' << params.W  <<  ' ' << params.k << ' ' << params.s << ' ' << params.C_o << '\n';
                                            
         small::Tensor<BufferT> input(input_shape);
         small::Tensor<BufferT> output(conv2d.output_size());
@@ -216,50 +216,50 @@ int main() {
         cout << "TBLIS(CWH): " << FLOPS / elapsed_tblis << " GFLOPs\n"; 
         cout << "Max diff between LibTorch and TBLIS(CWH): " << max_abs_diff(res, C2_CWH, Co, Wo, Ho) << "\n";
 
-        tblis::tensor<float> A2_CHW = varray_view<float>({Ci, Ho, Hf, Wo, Wf}, A_CHW.data(), {(Wi + 2 * p) * (Hi + 2 * p), (Wi + 2 * p) * s, (Wi + 2 * p), s, 1});
-        tblis::tensor<float> C2_CHW = varray({Co, Wo, Ho}, 0);
-        start_tblis = chrono::steady_clock::now();        
-        mult<float>(1, A2_CHW, "adebc", B, "afce", 0, C2_CHW, "fbd");
-        end_tblis = chrono::steady_clock::now();
-        elapsed_tblis = chrono::duration_cast<chrono::nanoseconds>(end_tblis - start_tblis).count();
-        cout << "TBLIS(CHW): " << FLOPS / elapsed_tblis << " GFLOPs\n"; 
-        cout << "Max diff between LibTorch and TBLIS(CHW): " << max_abs_diff(res, C2_CHW, Co, Wo, Ho) << "\n";
+        // tblis::tensor<float> A2_CHW = varray_view<float>({Ci, Ho, Hf, Wo, Wf}, A_CHW.data(), {(Wi + 2 * p) * (Hi + 2 * p), (Wi + 2 * p) * s, (Wi + 2 * p), s, 1});
+        // tblis::tensor<float> C2_CHW = varray({Co, Wo, Ho}, 0);
+        // start_tblis = chrono::steady_clock::now();        
+        // mult<float>(1, A2_CHW, "adebc", B, "afce", 0, C2_CHW, "fbd");
+        // end_tblis = chrono::steady_clock::now();
+        // elapsed_tblis = chrono::duration_cast<chrono::nanoseconds>(end_tblis - start_tblis).count();
+        // cout << "TBLIS(CHW): " << FLOPS / elapsed_tblis << " GFLOPs\n"; 
+        // cout << "Max diff between LibTorch and TBLIS(CHW): " << max_abs_diff(res, C2_CHW, Co, Wo, Ho) << "\n";
 
-        tblis::tensor<float> A2_HCW = varray_view<float>({Ho, Hf, Ci, Wo, Wf}, A_HCW.data(), {(Wi + 2 * p) * Ci * s, (Wi + 2 * p) * Ci, (Wi + 2 * p), s, 1});
-        tblis::tensor<float> C2_HCW = varray({Co, Wo, Ho}, 0);
-        start_tblis = chrono::steady_clock::now();        
-        mult<float>(1, A2_HCW, "deabc", B, "afce", 0, C2_HCW, "fbd");
-        end_tblis = chrono::steady_clock::now();
-        elapsed_tblis = chrono::duration_cast<chrono::nanoseconds>(end_tblis - start_tblis).count();
-        cout << "TBLIS(HCW): " << FLOPS / elapsed_tblis << " GFLOPs\n"; 
-        cout << "Max diff between LibTorch and TBLIS(HCW): " << max_abs_diff(res, C2_HCW, Co, Wo, Ho) << "\n";
+        // tblis::tensor<float> A2_HCW = varray_view<float>({Ho, Hf, Ci, Wo, Wf}, A_HCW.data(), {(Wi + 2 * p) * Ci * s, (Wi + 2 * p) * Ci, (Wi + 2 * p), s, 1});
+        // tblis::tensor<float> C2_HCW = varray({Co, Wo, Ho}, 0);
+        // start_tblis = chrono::steady_clock::now();        
+        // mult<float>(1, A2_HCW, "deabc", B, "afce", 0, C2_HCW, "fbd");
+        // end_tblis = chrono::steady_clock::now();
+        // elapsed_tblis = chrono::duration_cast<chrono::nanoseconds>(end_tblis - start_tblis).count();
+        // cout << "TBLIS(HCW): " << FLOPS / elapsed_tblis << " GFLOPs\n"; 
+        // cout << "Max diff between LibTorch and TBLIS(HCW): " << max_abs_diff(res, C2_HCW, Co, Wo, Ho) << "\n";
 
-        tblis::tensor<float> A2_HWC = varray_view<float>({Ho, Hf, Wo, Wf, Ci}, A_HWC.data(), {(Wi + 2 * p) * Ci * s, (Wi + 2 * p) * Ci, Ci * s, Ci, 1});
-        tblis::tensor<float> C2_HWC = varray({Co, Wo, Ho}, 0);
-        start_tblis = chrono::steady_clock::now();        
-        mult<float>(1, A2_HWC, "debca", B, "afce", 0, C2_HWC, "fbd");
-        end_tblis = chrono::steady_clock::now();
-        elapsed_tblis = chrono::duration_cast<chrono::nanoseconds>(end_tblis - start_tblis).count();
-        cout << "TBLIS(HWC): " << FLOPS / elapsed_tblis << " GFLOPs\n"; 
-        cout << "Max diff between LibTorch and TBLIS(HWC): " << max_abs_diff(res, C2_HWC, Co, Wo, Ho) << "\n";
+        // tblis::tensor<float> A2_HWC = varray_view<float>({Ho, Hf, Wo, Wf, Ci}, A_HWC.data(), {(Wi + 2 * p) * Ci * s, (Wi + 2 * p) * Ci, Ci * s, Ci, 1});
+        // tblis::tensor<float> C2_HWC = varray({Co, Wo, Ho}, 0);
+        // start_tblis = chrono::steady_clock::now();        
+        // mult<float>(1, A2_HWC, "debca", B, "afce", 0, C2_HWC, "fbd");
+        // end_tblis = chrono::steady_clock::now();
+        // elapsed_tblis = chrono::duration_cast<chrono::nanoseconds>(end_tblis - start_tblis).count();
+        // cout << "TBLIS(HWC): " << FLOPS / elapsed_tblis << " GFLOPs\n"; 
+        // cout << "Max diff between LibTorch and TBLIS(HWC): " << max_abs_diff(res, C2_HWC, Co, Wo, Ho) << "\n";
 
-        tblis::tensor<float> A2_WHC = varray_view<float>({Wo, Wf, Ho, Hf, Ci}, A_WHC.data(), {(Hi + 2 * p) * Ci * s, (Hi + 2 * p) * Ci, Ci * s, Ci, 1});
-        tblis::tensor<float> C2_WHC = varray({Co, Wo, Ho}, 0);
-        start_tblis = chrono::steady_clock::now();        
-        mult<float>(1, A2_WHC, "bcdea", B, "afce", 0, C2_WHC, "fbd");
-        end_tblis = chrono::steady_clock::now();
-        elapsed_tblis = chrono::duration_cast<chrono::nanoseconds>(end_tblis - start_tblis).count();
-        cout << "TBLIS(WHC): " << FLOPS / elapsed_tblis << " GFLOPs\n"; 
-        cout << "Max diff between LibTorch and TBLIS(WHC): " << max_abs_diff(res, C2_WHC, Co, Wo, Ho) << "\n";
+        // tblis::tensor<float> A2_WHC = varray_view<float>({Wo, Wf, Ho, Hf, Ci}, A_WHC.data(), {(Hi + 2 * p) * Ci * s, (Hi + 2 * p) * Ci, Ci * s, Ci, 1});
+        // tblis::tensor<float> C2_WHC = varray({Co, Wo, Ho}, 0);
+        // start_tblis = chrono::steady_clock::now();        
+        // mult<float>(1, A2_WHC, "bcdea", B, "afce", 0, C2_WHC, "fbd");
+        // end_tblis = chrono::steady_clock::now();
+        // elapsed_tblis = chrono::duration_cast<chrono::nanoseconds>(end_tblis - start_tblis).count();
+        // cout << "TBLIS(WHC): " << FLOPS / elapsed_tblis << " GFLOPs\n"; 
+        // cout << "Max diff between LibTorch and TBLIS(WHC): " << max_abs_diff(res, C2_WHC, Co, Wo, Ho) << "\n";
 
-        tblis::tensor<float> A2_WCH = varray_view<float>({Wo, Wf, Ci, Ho, Hf}, A_WCH.data(), {(Hi + 2 * p) * Ci * s, (Hi + 2 * p) * Ci, (Hi + 2 * p), s, 1});
-        tblis::tensor<float> C2_WCH = varray({Co, Wo, Ho}, 0);
-        start_tblis = chrono::steady_clock::now();        
-        mult<float>(1, A2_WCH, "bcade", B, "afce", 0, C2_WCH, "fbd");
-        end_tblis = chrono::steady_clock::now();
-        elapsed_tblis = chrono::duration_cast<chrono::nanoseconds>(end_tblis - start_tblis).count();
-        cout << "TBLIS(WCH): " << FLOPS / elapsed_tblis << " GFLOPs\n"; 
-        cout << "Max diff between LibTorch and TBLIS(WCH): " << max_abs_diff(res, C2_WCH, Co, Wo, Ho) << "\n\n";        
+        // tblis::tensor<float> A2_WCH = varray_view<float>({Wo, Wf, Ci, Ho, Hf}, A_WCH.data(), {(Hi + 2 * p) * Ci * s, (Hi + 2 * p) * Ci, (Hi + 2 * p), s, 1});
+        // tblis::tensor<float> C2_WCH = varray({Co, Wo, Ho}, 0);
+        // start_tblis = chrono::steady_clock::now();        
+        // mult<float>(1, A2_WCH, "bcade", B, "afce", 0, C2_WCH, "fbd");
+        // end_tblis = chrono::steady_clock::now();
+        // elapsed_tblis = chrono::duration_cast<chrono::nanoseconds>(end_tblis - start_tblis).count();
+        // cout << "TBLIS(WCH): " << FLOPS / elapsed_tblis << " GFLOPs\n"; 
+        // cout << "Max diff between LibTorch and TBLIS(WCH): " << max_abs_diff(res, C2_WCH, Co, Wo, Ho) << "\n\n";        
 
         // Source: https://stackoverflow.com/questions/73902752/how-can-i-get-the-maximum-values-of-a-tensor-along-a-dimension
         // cout << "Max diff: " << (torch::max(torch::abs(layer_outputs[layer] - res))).item() << '\n';

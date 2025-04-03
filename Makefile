@@ -14,6 +14,8 @@ SRC_OBJS := ref.o
 
 TEST_OBJS := small_tests.o
 
+TBLIS_TEST_OBJ := small_tblis.o
+
 all: driver
 
 driver: $(SRC_OBJS)
@@ -21,6 +23,9 @@ driver: $(SRC_OBJS)
 
 small_tests: $(TEST_OBJS)
 	$(CPP) $(TEST_OBJS) -o small_tests.x $(LDFLAGS)
+
+tblis_test: $(TBLIS_TEST_OBJ)
+	$(CPP) $(TBLIS_TEST_OBJ) -o tblis_test.x $(LDFLAGS)	
 
 %.o: %.cpp
 	$(CPP) $(CPPFLAGS) -c $< -o $@
@@ -30,6 +35,9 @@ run: driver
 
 run_tests: small_tests
 	./small_tests.x
+
+run_tblis_test: tblis_test
+	./tblis_test.x	
 
 clean:
 	rm -f *.o *~ core *.x
